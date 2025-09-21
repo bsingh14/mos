@@ -1,194 +1,102 @@
+# IoT Stack on Raspberry Pi — Setup Checklist
 
-# 🛰️ Mosquitto MQTT Broker Setup on a Linux VPS (with SSL)
+This README provides a **step-by-step checklist** to set up a complete IoT stack on Raspberry Pi with:
 
-This guide helps you install, configure, and secure the [Eclipse Mosquitto](https://mosquitto.org/) MQTT broker on a Linux VPS, with support for authentication and optional SSL encryption.
+- MQTT Broker (Mosquitto)
+- Time-series Database (InfluxDB v2)
+- Flow-based automation (Node-RED)
+- Dashboards (Grafana)
 
----
-
-## 📦 Step 1: Install Mosquitto and Clients
-
-```bash
-sudo apt update
-sudo apt install mosquitto mosquitto-clients -y
-```
+Everything runs **free** and on a single Raspberry Pi using **Docker Compose**.
 
 ---
 
-## ⚙️ Step 2: Configure Mosquitto for Remote Access
+## ✅ Setup Checklist
 
-Create a configuration file:
+### 1. Raspberry Pi Preparation
+- [ ] Raspberry Pi 4 with 2GB+ RAM (Pi 3 works but slower)
+- [ ] Install Raspberry Pi OS (64-bit preferred)
+- [ ] SSH enabled & user with `sudo`
 
-```bash
-sudo nano /etc/mosquitto/conf.d/remote.conf
-```
-
-Add the following:
-
-```conf
-listener 1883
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-```
-
----
-
-## 👤 Step 3: Create MQTT User and Password
-
-```bash
-sudo mosquitto_passwd -c /etc/mosquitto/passwd your_username
-```
-
----
-
-## 🚀 Step 4: Start and Enable Mosquitto Service
-
-```bash
-sudo systemctl restart mosquitto
-sudo systemctl enable mosquitto
-```
-
----
-
-## 🔓 Step 5: Open Firewall Port (1883 for MQTT)
-
-If using UFW:
-
-```bash
-sudo ufw allow 1883
-```
-
-Or, allow port 1883 from your VPS provider's security group settings (e.g., AWS EC2, Google Cloud, etc.)
-
----
-
-## 🧪 Step 6: Test the MQTT Broker (from remote machine)
-
-### Subscriber:
-
-```bash
-mosquitto_sub -h your_vps_ip -t test/topic -u your_username -P your_password
-```
-
-### Publisher:
-
-```bash
-mosquitto_pub -h your_vps_ip -t test/topic -m "Hello MQTT from VPS" -u your_username -P your_password
-```
-
----
-
-## 🔒 Step 7: Add SSL Support (Optional but Recommended)
-
-### 7.1 Install Certbot and Get SSL Certificate
-
-If you have a domain pointing to your VPS:
-
-```bash
-sudo apt install certbot -y
-sudo certbot certonly --standalone -d mqtt.yourdomain.com
-```
-
-Certificates will be stored in:
-
-```
-/etc/letsencrypt/live/mqtt.yourdomain.com/
-```
-
----
-
-### 7.2 Configure Mosquitto with SSL
-
-Create file:
-
-```bash
-sudo nano /etc/mosquitto/conf.d/ssl.conf
-```
-
-Add the following:
-
-```conf
-listener 8883
-cafile /etc/letsencrypt/live/mqtt.yourdomain.com/chain.pem
-certfile /etc/letsencrypt/live/mqtt.yourdomain.com/cert.pem
-keyfile /etc/letsencrypt/live/mqtt.yourdomain.com/privkey.pem
-
-require_certificate false
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-```
-
-Restart Mosquitto:
-
-```bash
-sudo systemctl restart mosquitto
-```
-
----
-
-### 7.3 Test SSL MQTT Connection
-
-Use MQTT client that supports SSL:
-
-```bash
-mosquitto_pub -h mqtt.yourdomain.com -p 8883 --capath /etc/ssl/certs \
- -t test/topic -m "Hello with SSL" -u your_username -P your_password
-```
-
----
-
-## 🌐 Optional: WebSocket Support (Port 9001)
-
-Edit (or create):
-
-```bash
-sudo nano /etc/mosquitto/conf.d/websocket.conf
-```
-
-Add:
-
-```conf
-listener 9001
-protocol websockets
-password_file /etc/mosquitto/passwd
-```
-
-Restart:
-
-```bash
-sudo systemctl restart mosquitto
-```
-
----
-
-## 🧼 Logs and Troubleshooting
-
-Logs are typically stored in:
-
-```
-/var/log/mosquitto/mosquitto.log
-```
-
-You can also check service status:
-
-```bash
-sudo systemctl status mosquitto
-```
-
----
-
-## ✅ Done!
-
-Your secure MQTT broker is now ready to use from anywhere!
-
----
-
-## 🔐 Tips for Production
-- Use firewall rules to restrict access to trusted IPs.
-- Set up automatic SSL renewal: `sudo crontab -e`  
-  ```cron
-  0 3 * * * certbot renew --quiet && systemctl restart mosquitto
+### 2. Install Docker & Compose
+- [ ] Install Docker  
+  ```bash
+  curl -fsSL https://get.docker.com -o get-docker.sh
+  sudo sh get-docker.sh
+  sudo usermod -aG docker $USER
   ```
-- Consider using MQTT over WebSockets for browser-based clients.
-- Monitor usage with tools like Telegraf + InfluxDB + Grafana.
+- [ ] Reboot Pi or re-login
+- [ ] Install Docker Compose plugin  
+  ```bash
+  sudo apt update
+  sudo apt install -y docker-compose-plugin
+  ```
+
+### 3. Project Folder Structure
+- [ ] Create base folder
+  ```bash
+  mkdir -p ~/iot-stack/{mosquitto/config,mosquitto/data,mosquitto/log,influxdb,node-red,grafana}
+  cd ~/iot-stack
+  ```
+
+### 4. Configuration Files
+- [ ] Create `docker-compose.yml` in `~/iot-stack`
+- [ ] Create `mosquitto.conf` in `~/iot-stack/mosquitto/config/`
+
+### 5. Start the Stack
+- [ ] Run containers  
+  ```bash
+  docker compose up -d
+  ```
+- [ ] Verify services are running  
+  ```bash
+  docker ps
+  ```
+
+### 6. InfluxDB Setup
+- [ ] Access InfluxDB at `http://<rpi-ip>:8086`
+- [ ] Login with `admin` / `YourInfluxAdminPass`
+- [ ] Note down **API Token**
+
+### 7. Node-RED Setup
+- [ ] Access Node-RED at `http://<rpi-ip>:1880`
+- [ ] Install palettes:
+  - [ ] `node-red-dashboard`
+  - [ ] `node-red-contrib-influxdb-v2`
+- [ ] Create flow: MQTT → Parse → InfluxDB
+- [ ] Test with sample MQTT publish:
+  ```bash
+  mosquitto_pub -h <rpi-ip> -t "tenant/tenant1/device/device123/telemetry" -m '{"temp":23.5,"hum":55}'
+  ```
+
+### 8. Grafana Setup
+- [ ] Access Grafana at `http://<rpi-ip>:3000`
+- [ ] Login with `admin` / `admin` (change password immediately)
+- [ ] Add InfluxDB data source
+- [ ] Create dashboards (per tenant/device)
+
+### 9. Security (LAN now, Public later)
+- [ ] Set Mosquitto password file
+- [ ] Disable anonymous access
+- [ ] Secure Node-RED and Grafana with strong passwords
+- [ ] (Later) Enable TLS for public access
+
+### 10. Data Management
+- [ ] Verify InfluxDB bucket retention (default 30d)
+- [ ] Set backup strategy
+- [ ] Plan long-term storage (aggregation or export)
 
 ---
+
+## 🔑 Quick Access URLs
+- Mosquitto MQTT: `mqtt://<rpi-ip>:1883`
+- Node-RED: `http://<rpi-ip>:1880`
+- InfluxDB: `http://<rpi-ip>:8086`
+- Grafana: `http://<rpi-ip>:3000`
+
+---
+
+## 🚀 Next Steps
+- Add new flows in Node-RED for custom logic
+- Share dashboards with customers using Grafana view-only accounts
+- Prepare migration path if scaling beyond one Raspberry Pi
