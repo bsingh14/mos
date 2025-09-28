@@ -14,55 +14,55 @@ Everything runs **free** and on a single Raspberry Pi using **Docker Compose**.
 ## ✅ Setup Checklist
 
 ### 1. Raspberry Pi Preparation
-- [ ] Raspberry Pi 4 with 2GB+ RAM (Pi 3 works but slower)
-- [ ] Install Raspberry Pi OS (64-bit preferred)
-- [ ] SSH enabled & user with `sudo`
+- [x] Raspberry Pi 4 with 2GB+ RAM (Pi 3 works but slower)
+- [x] Install Raspberry Pi OS (64-bit preferred)
+- [x] SSH enabled & user with `sudo`
 
 ### 2. Install Docker & Compose
-- [ ] Install Docker  
+- [x] Install Docker  
   ```bash
   curl -fsSL https://get.docker.com -o get-docker.sh
   sudo sh get-docker.sh
   sudo usermod -aG docker $USER
   ```
-- [ ] Reboot Pi or re-login
-- [ ] Install Docker Compose plugin  
+- [x] Reboot Pi or re-login
+- [x] Install Docker Compose plugin  
   ```bash
   sudo apt update
   sudo apt install -y docker-compose-plugin
   ```
 
 ### 3. Project Folder Structure
-- [ ] Create base folder
+- [x] Create base folder
   ```bash
   mkdir -p ~/iot-stack/{mosquitto/config,mosquitto/data,mosquitto/log,influxdb,node-red,grafana}
   cd ~/iot-stack
   ```
 
 ### 4. Configuration Files
-- [ ] Create `docker-compose.yml` in `~/iot-stack`
-- [ ] Create `mosquitto.conf` in `~/iot-stack/mosquitto/config/`
+- [x] Create `docker-compose.yml` in `~/iot-stack`
+- [x] Create `mosquitto.conf` in `~/iot-stack/mosquitto/config/`
 
 ### 5. Start the Stack
-- [ ] Run containers  
+- [x] Run containers  
   ```bash
   docker compose up -d
   ```
-- [ ] Verify services are running  
+- [x] Verify services are running  
   ```bash
   docker ps
   ```
 
 ### 6. InfluxDB Setup
-- [ ] Access InfluxDB at `http://<rpi-ip>:8086`
-- [ ] Login with `admin` / `YourInfluxAdminPass`
+- [x] Access InfluxDB at `http://<rpi-ip>:8086`
+- [x] Login with `admin` / `YourInfluxAdminPass`
 - [ ] Note down **API Token**
 
 ### 7. Node-RED Setup
-- [ ] Access Node-RED at `http://<rpi-ip>:1880`
-- [ ] Install palettes:
-  - [ ] `node-red-dashboard`
-  - [ ] `node-red-contrib-influxdb-v2`
+- [x] Access Node-RED at `http://<rpi-ip>:1880`
+- [x] Install palettes:
+  - [x] `node-red-dashboard`
+  - [x] `node-red-contrib-influxdb-v2`
 - [ ] Create flow: MQTT → Parse → InfluxDB
 - [ ] Test with sample MQTT publish:
   ```bash
