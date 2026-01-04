@@ -50,6 +50,7 @@ services:
       DOCKER_INFLUXDB_INIT_PASSWORD: "asbhatti"
       DOCKER_INFLUXDB_INIT_ORG: "SmallScaleIndustry"
       DOCKER_INFLUXDB_INIT_BUCKET: "FactoryData"
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: "my-super-secret-admin-token-123"
 
   telegraf:
     image: telegraf:latest
@@ -59,17 +60,45 @@ services:
     depends_on: ["mqtt-broker", "influxdb"]
 EOF
 
-# 5. Generate Mosquitto Password File
-echo "Step 5: Setting up Mosquitto password..."
-# We use the -b flag to pass the password directly in the command for automation
+# 5. Create telegraf.conf
+echo "Step 5: Generating telegraf.conf..."
+cat <<EOF > telegraf_config/telegraf.conf
+[agent]
+  interval = "10s"
+  round_interval = true
+  metric_batch_size = 1000
+  metric_buffer_limit = 10000
+  collection_jitter = "0s"
+  flush_interval = "10s"
+  flush_jitter = "0s"
+  precision = ""
+  hostname = ""
+  omit_hostname = false
+
+[[outputs.influxdb_v2]]
+  urls = ["http://influxdb:8086"]
+  token = "my-super-secret-admin-token-123"
+  organization = "SmallScaleIndustry"
+  bucket = "FactoryData"
+
+[[inputs.mqtt_consumer]]
+  servers = ["tcp://mosquitto:1883"]
+  topics = ["factory/#"]
+  username = "factory_admin"
+  password = "asbhatti"
+  data_format = "json"
+EOF
+
+# 6. Generate Mosquitto Password File
+echo "Step 6: Setting up Mosquitto password..."
 docker run --rm -v ~/iiot-stack/config:/mosquitto/config eclipse-mosquitto \
 mosquitto_passwd -b -c /mosquitto/config/password.txt factory_admin asbhatti
 
-# 6. Final Instructions
+# 7. Final Instructions
 echo "-------------------------------------------------------"
 echo "SETUP COMPLETE!"
 echo "-------------------------------------------------------"
-echo "IMPORTANT: Run 'newgrp docker' or log out/in before starting containers."
-echo "Then run:"
-echo "cd ~/iiot-stack && docker compose up -d"
+echo "1. Run 'newgrp docker' (or log out/in) to use Docker."
+echo "2. Start the stack: cd ~/iiot-stack && docker compose up -d"
+echo "3. Access InfluxDB at http://$(hostname -I | awk '{print \$1}'):8086"
 echo "-------------------------------------------------------"
