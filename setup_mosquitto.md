@@ -73,3 +73,11 @@ docker run -d \
   - Port: 1883
   - Username: factory_admin
   - Password: (The one you just set)
+### Testing the setup:
+- start listening on RPI `docker exec -it mosquitto mosquitto_sub -h localhost -t "factory/motor1/vibration" -u factory_admin -P "password"`
+- use the explorer to publish data.
+- Or install the client
+```
+sudo apt install mosquitto-clients -y
+mosquitto_sub -h localhost -t "factory/motor1/vibration" -u factory_admin -P "password"
+```
