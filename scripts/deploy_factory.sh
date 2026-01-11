@@ -29,9 +29,16 @@ for script in "${SCRIPTS[@]}"; do
     fi
 done
 
+
+
 echo "=========================================="
 echo "   ALL SYSTEMS SECURED AND DEPLOYED"
 echo "=========================================="
 
 # Refresh group permissions for the current session
-exec newgrp docker
+exec newgrp docker <<EONG
+  cd ~/iiot-stack
+  docker compose up -d
+  echo "Stack started successfully!"
+  echo "Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"
+EONG
