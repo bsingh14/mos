@@ -99,6 +99,8 @@ echo "-------------------------------------------------------"
 echo "SETUP COMPLETE!"
 echo "-------------------------------------------------------"
 echo "1. Run 'newgrp docker' (or log out/in) to use Docker."
+newgrp docker
 echo "2. Start the stack: cd ~/iiot-stack && docker compose up -d"
+cd ~/iiot-stack && docker compose up -d
 echo "3. Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"
 echo "-------------------------------------------------------"
