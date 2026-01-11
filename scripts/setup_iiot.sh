@@ -14,6 +14,9 @@ echo "Step 2: Creating IIoT-Stack directories..."
 mkdir -p ~/iiot-stack/config ~/iiot-stack/data ~/iiot-stack/log \
          ~/iiot-stack/influxdb_data ~/iiot-stack/telegraf_config
 
+# change ownership to $USER
+sudo chown -R $USER:$USER ~/iiot-stack
+
 cd ~/iiot-stack
 
 # 3. Create mosquitto.conf
@@ -92,8 +95,17 @@ echo "Step 6: Setting up Mosquitto password..."
 # Using sudo one last time here ensures that even if Docker 
 # messed up permissions earlier, the command will succeed.
 sudo chown -R $USER:$USER ~/iiot-stack/config
-docker run --rm -v ~/iiot-stack/config:/mosquitto/config eclipse-mosquitto \
-mosquitto_passwd -b -c /mosquitto/config/password.txt factory_admin asbhatti
+sg docker -c "docker run --rm -v ~/iiot-stack/config:/mosquitto/config eclipse-mosquitto \
+mosquitto_passwd -b -c /mosquitto/config/password.txt factory_admin asbhatti"
+
+if [ -f ~/iiot-stack/config/password.txt ]; then
+    echo "SUCCESS: password.txt created."
+else
+    echo "ERROR: password.txt was not created."
+fi
+
+# enusre config folder is accessible by $USER
+sudo chown -R $USER:$USER ~/iiot-stack/config
 
 # 7. Final Instructions
 echo "-------------------------------------------------------"
@@ -101,9 +113,9 @@ echo "SETUP COMPLETE!"
 echo "-------------------------------------------------------"
 # The 'exec' command here is the secret to avoiding a logout.
 # It restarts the shell with the new group permissions.
-exec newgrp docker <<EONG
-  cd ~/iiot-stack
-  docker compose up -d
-  echo "Stack started successfully!"
-  echo "Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"
-EONG
+#exec newgrp docker <<EONG
+#  cd ~/iiot-stack
+#  docker compose up -d
+#  echo "Stack started successfully!"
+#  echo "Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"
+#EONG
