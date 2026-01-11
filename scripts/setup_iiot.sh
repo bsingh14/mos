@@ -1,12 +1,15 @@
 #!/bin/bash
 
 # 1. System Update and Docker Installation
+# SUDO IS REQUIRED HERE: These are system-wide changes.
 echo "Step 1: Installing Docker..."
 sudo apt update && sudo apt upgrade -y
 curl -sSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 
 # 2. Create Directory Structure
+# NO SUDO NEEDED: Creating folders in your home directory (~/) 
+# is permitted for your standard user.
 echo "Step 2: Creating IIoT-Stack directories..."
 mkdir -p ~/iiot-stack/config ~/iiot-stack/data ~/iiot-stack/log \
          ~/iiot-stack/influxdb_data ~/iiot-stack/telegraf_config
@@ -14,6 +17,7 @@ mkdir -p ~/iiot-stack/config ~/iiot-stack/data ~/iiot-stack/log \
 cd ~/iiot-stack
 
 # 3. Create mosquitto.conf
+# NO SUDO NEEDED: You own the folder now.
 echo "Step 3: Generating mosquitto.conf..."
 cat <<EOF > config/mosquitto.conf
 listener 1883 0.0.0.0
@@ -65,13 +69,7 @@ echo "Step 5: Generating telegraf.conf..."
 cat <<EOF > telegraf_config/telegraf.conf
 [agent]
   interval = "10s"
-  round_interval = true
-  metric_batch_size = 1000
-  metric_buffer_limit = 10000
-  collection_jitter = "0s"
   flush_interval = "10s"
-  flush_jitter = "0s"
-  precision = ""
   hostname = ""
   omit_hostname = false
 
@@ -91,6 +89,9 @@ EOF
 
 # 6. Generate Mosquitto Password File
 echo "Step 6: Setting up Mosquitto password..."
+# Using sudo one last time here ensures that even if Docker 
+# messed up permissions earlier, the command will succeed.
+sudo chown -R $USER:$USER ~/iiot-stack/config
 docker run --rm -v ~/iiot-stack/config:/mosquitto/config eclipse-mosquitto \
 mosquitto_passwd -b -c /mosquitto/config/password.txt factory_admin asbhatti
 
@@ -98,9 +99,11 @@ mosquitto_passwd -b -c /mosquitto/config/password.txt factory_admin asbhatti
 echo "-------------------------------------------------------"
 echo "SETUP COMPLETE!"
 echo "-------------------------------------------------------"
-echo "1. Run 'newgrp docker' (or log out/in) to use Docker."
-newgrp docker
-echo "2. Start the stack: cd ~/iiot-stack && docker compose up -d"
-cd ~/iiot-stack && docker compose up -d
-echo "3. Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"
-echo "-------------------------------------------------------"
+# The 'exec' command here is the secret to avoiding a logout.
+# It restarts the shell with the new group permissions.
+exec newgrp docker <<EONG
+  cd ~/iiot-stack
+  docker compose up -d
+  echo "Stack started successfully!"
+  echo "Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"
+EONG
