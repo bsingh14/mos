@@ -15,16 +15,25 @@
 
 #define WIFI_SSID "freedom"
 #define WIFI_PASS "6477164900"
-#define MQTT_USERNAME "factory_admin"
-#define MQTT_PASSWORD "asbhatti"
 
 #define LED_STRIP_GPIO GPIO_NUM_48
 #define LED_STRIP_RMT_CHANNEL 0
 
-#define MQTT_BROKER_URI "mqtt://192.168.4.126:1883"
+#define MQTT_BROKER_URI "mqtts://192.168.4.126:8883"
 
 static const char *TAG = "MQTT_DEMO";
 static led_strip_handle_t led_strip;
+
+extern const uint8_t ca_pem_start[] asm("_binary_ca_pem_start");
+extern const uint8_t ca_pem_end[]   asm("_binary_ca_pem_end");
+
+extern const uint8_t client_cert_pem_start[] asm("_binary_client_crt_start");
+extern const uint8_t client_cert_pem_end[]   asm("_binary_client_crt_end");
+
+extern const uint8_t client_key_pem_start[] asm("_binary_client_key_start");
+extern const uint8_t client_key_pem_end[]   asm("_binary_client_key_end");
+
+
 
 /* ===== LED Control ===== */
 
@@ -200,13 +209,23 @@ static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = MQTT_BROKER_URI,
-        .credentials.username = MQTT_USERNAME,
-        .credentials.authentication.password = MQTT_PASSWORD,
-        .session.keepalive = 60,
-        .network.disable_auto_reconnect = false,
+        /*.broker.address.transport = MQTT_TRANSPORT_OVER_SSL,*/
+
+        .broker.verification.certificate =
+            (const char *)ca_pem_start,
+
+        .credentials.authentication.certificate =
+            (const char *)client_cert_pem_start,
+
+        .credentials.authentication.key =
+            (const char *)client_key_pem_start,
+
+        .credentials.client_id = "esp32s3_mqtt_01",
+
     };
 
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_handle_t client =
+        esp_mqtt_client_init(&mqtt_cfg);
 
     esp_mqtt_client_register_event(
         client,
