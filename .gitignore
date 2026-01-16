@@ -1,5 +1,6 @@
 # Build folder
-/build/
+build/
+managed_components/
 
 # Compiled object files
 *.o
