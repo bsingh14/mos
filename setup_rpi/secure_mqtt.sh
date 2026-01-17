@@ -12,14 +12,13 @@ sudo chown -R $USER:$USER "$STACK_DIR"
 cd "$CERT_DIR" || exit
 
 echo "--- Step 2: Generating Certificate Authority (CA) ---"
-openssl req -new -x509 -days 3650 -extensions v3_ca \
-    -keyout ca.key -out ca.crt -nodes \
-    -subj "/CN=MyIIoT-CA"
+openssl req -new -x509 -days 3650 -nodes -out ca.crt -keyout ca.key -subj "/CN=MyIIoT-CA"
+chmod 644 ca.crt
 
 echo "--- Step 3: Creating OpenSSL Config ---"
 cat <<EOF > openssl.cnf
 [v3_req]
-subjectAltName = IP:$RPI_IP
+subjectAltName = IP:$RPI_IP,DNS:mosquitto
 EOF
 
 echo "--- Step 4: Generating Server Certificate ---"
@@ -37,57 +36,18 @@ sudo chown -R 1883:1883 "$CERT_DIR"
 echo "--- Step 6: Updating mosquitto.conf ---"
 # Using sudo tee because the folder is now owned by 1883
 cat <<EOF | sudo tee "$STACK_DIR/config/mosquitto.conf" > /dev/null
+persistence true
+persistence_location /mosquitto/data/
+log_dest file /mosquitto/log/mosquitto.log
+
 listener 1883 0.0.0.0
+allow_anonymous false
+password_file /mosquitto/config/password.txt
+
 listener 8883 0.0.0.0
 cafile /mosquitto/config/certs/ca.crt
 certfile /mosquitto/config/certs/server.crt
 keyfile /mosquitto/config/certs/server.key
-allow_anonymous false
-password_file /mosquitto/config/password.txt
-persistence true
-persistence_location /mosquitto/data/
-log_dest file /mosquitto/log/mosquitto.log
+require_certificate true
+use_identity_as_username true
 EOF
-
-echo "--- Step 7: Updating docker-compose.yml ---"
-cat <<EOF | sudo tee "$STACK_DIR/docker-compose.yml" > /dev/null
-services:
-  mqtt-broker:
-    image: eclipse-mosquitto:latest
-    container_name: mosquitto
-    restart: always
-    ports:
-      - "1883:1883"
-      - "8883:8883"
-    volumes:
-      - ./config:/mosquitto/config
-      - ./data:/mosquitto/data
-      - ./log:/mosquitto/log
-
-  influxdb:
-    image: influxdb:2.7
-    container_name: influxdb
-    restart: always
-    ports: ["8086:8086"]
-    volumes: ["./influxdb_data:/var/lib/influxdb2"]
-    environment:
-      DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: "mos"
-      DOCKER_INFLUXDB_INIT_PASSWORD: "asbhatti"
-      DOCKER_INFLUXDB_INIT_ORG: "SmallScaleIndustry"
-      DOCKER_INFLUXDB_INIT_BUCKET: "FactoryData"
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: "my-super-secret-admin-token-123"
-
-  telegraf:
-    image: telegraf:latest
-    container_name: telegraf
-    restart: always
-    volumes: ["./telegraf_config:/etc/telegraf"]
-    depends_on: ["mqtt-broker", "influxdb"]
-EOF
-
-#echo "--- Step 8: Restarting the Stack ---"
-#cd "$STACK_DIR"
-# Use sudo for docker commands to bypass the 'socket permission' error
-#sudo docker compose up -d
-#sudo docker compose restart mqtt-broker

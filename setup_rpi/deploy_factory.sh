@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the order of scripts to run
-SCRIPTS=("setup_iiot.sh" "secure_mqtt.sh" "setup_mtls.sh")
+SCRIPTS=("setup_iiot.sh" "secure_mqtt.sh" "setup_mtls.sh" "telegraf_config.sh")
 
 echo "=========================================="
 echo "   IIoT FACTORY STACK - MASTER DEPLOY"
@@ -38,6 +38,7 @@ echo "=========================================="
 # Refresh group permissions for the current session
 exec newgrp docker <<EONG
   cd ~/iiot-stack
+  docker compose down -v
   docker compose up -d
   echo "Stack started successfully!"
   echo "Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"

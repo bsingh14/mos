@@ -33,7 +33,10 @@ extern const uint8_t client_cert_pem_end[]   asm("_binary_client_crt_end");
 extern const uint8_t client_key_pem_start[] asm("_binary_client_key_start");
 extern const uint8_t client_key_pem_end[]   asm("_binary_client_key_end");
 
+static esp_mqtt_client_handle_t mqtt_client = NULL;
+static bool mqtt_connected = false;
 
+static TaskHandle_t mqtt_task_handle = NULL;
 
 /* ===== LED Control ===== */
 
@@ -145,6 +148,48 @@ static void wifi_init_sta(void)
 
 /* ===== MQTT ===== */
 
+static void mqtt_publish_task(void *arg)
+{
+    int counter = 0;
+
+    while (1) {
+        if (mqtt_connected && mqtt_client) {
+            char payload[128];
+
+            // Example telemetry (InfluxDB friendly JSON)
+            snprintf(payload, sizeof(payload),
+                     "{"
+                     "\"device_id\":\"esp32s3_01\","
+                     "\"counter\":%d,"
+                     "\"uptime_sec\":%lu"
+                     "}",
+                     counter++,
+                     esp_log_timestamp() / 1000);
+
+            esp_mqtt_client_publish(
+                mqtt_client,
+                "factory/esp32/device01",
+                payload,
+                0,
+                1,
+                0
+            );
+
+            ESP_LOGI(TAG, "Telemetry sent: %s", payload);
+        }
+
+        /* delay and check for valid connection */
+        for(uint32_t count = 0; count < 50; count++)
+        {
+            if((mqtt_connected == false) && (mqtt_task_handle != NULL)) //not connected
+            {
+                vTaskDelete(mqtt_task_handle);
+            }
+            vTaskDelay(pdMS_TO_TICKS(100)); // 5 seconds
+        }
+    }
+}
+
 static void mqtt_event_handler(void *handler_args,
                                esp_event_base_t base,
                                int32_t event_id,
@@ -156,16 +201,29 @@ static void mqtt_event_handler(void *handler_args,
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "MQTT connected");
 
+            mqtt_client = event->client;
+            mqtt_connected = true;
+
             esp_mqtt_client_subscribe(
-                event->client,
+                mqtt_client,
                 "esp32/mqtt_first_device/cmd",
                 0);
 
             esp_mqtt_client_publish(
-                event->client,
+                mqtt_client,
                 "esp32/mqtt_first_device/status",
                 "online",
                 0, 1, 0);
+
+            // Start telemetry task
+            xTaskCreate(
+                mqtt_publish_task,
+                "mqtt_publish_task",
+                4096,
+                NULL,
+                5,
+                &mqtt_task_handle);
+
             break;
 
         case MQTT_EVENT_DATA:
@@ -198,6 +256,11 @@ static void mqtt_event_handler(void *handler_args,
                         "LED_BLUE", 0, 1, 0);
                 }
             }
+            break;
+
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGW(TAG, "MQTT disconnected");
+            mqtt_connected = false;
             break;
 
         default:

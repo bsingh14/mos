@@ -15,7 +15,7 @@ mkdir -p ~/iiot-stack/config ~/iiot-stack/data ~/iiot-stack/log \
          ~/iiot-stack/influxdb_data ~/iiot-stack/telegraf_config
 
 # change ownership to $USER
-sudo chown -R $USER:$USER ~/iiot-stack
+#sudo chown -R $USER:$USER ~/iiot-stack
 
 cd ~/iiot-stack
 
@@ -50,7 +50,9 @@ services:
     image: eclipse-mosquitto:latest
     container_name: mosquitto
     restart: always
-    ports: ["1883:1883"]
+    ports:
+      - "1883:1883"
+      - "8883:8883"
     volumes:
       - ./config:/mosquitto/config
       - ./data:/mosquitto/data
@@ -74,31 +76,10 @@ services:
     image: telegraf:latest
     container_name: telegraf
     restart: always
-    volumes: ["./telegraf_config:/etc/telegraf"]
+    volumes:
+      - ./telegraf_config:/etc/telegraf
+      - ./config/certs:/etc/telegraf/certs:ro
     depends_on: ["mqtt-broker", "influxdb"]
-EOF
-
-# 5. Create telegraf.conf
-echo "Step 5: Generating telegraf.conf..."
-cat <<EOF > telegraf_config/telegraf.conf
-[agent]
-  interval = "10s"
-  flush_interval = "10s"
-  hostname = ""
-  omit_hostname = false
-
-[[outputs.influxdb_v2]]
-  urls = ["http://influxdb:8086"]
-  token = "my-super-secret-admin-token-123"
-  organization = "SmallScaleIndustry"
-  bucket = "FactoryData"
-
-[[inputs.mqtt_consumer]]
-  servers = ["tcp://mosquitto:1883"]
-  topics = ["factory/#"]
-  username = "factory_admin"
-  password = "asbhatti"
-  data_format = "json"
 EOF
 
 # 6. Generate Mosquitto Password File
@@ -107,7 +88,8 @@ touch ~/iiot-stack/log/mosquitto.log
 touch ~/iiot-stack/config/password.txt
 sudo chown 1883:1883 ~/iiot-stack/log/mosquitto.log
 sudo chmod 666 ~/iiot-stack/log/mosquitto.log
-sudo chmod 666 ~/iiot-stack/config/password.txt
+sudo chmod 700 ~/iiot-stack/config/password.txt
+sudo chown root:root ~/iiot-stack/config/password.txt
 # Hand over data and log folders to the Mosquitto container user
 sudo chown -R 1883:1883 ~/iiot-stack/data ~/iiot-stack/log
 
@@ -115,10 +97,12 @@ echo "Step 6: Setting up Mosquitto password..."
 # Using sudo one last time here ensures that even if Docker 
 # messed up permissions earlier, the command will succeed.
 
-sudo chown -R $USER:$USER ~/iiot-stack/config
+#sudo chown -R $USER:$USER ~/iiot-stack/config
 
-sg docker -c "docker run --rm -v ~/iiot-stack/config:/mosquitto/config eclipse-mosquitto \
-mosquitto_passwd -b -c /mosquitto/config/password.txt factory_admin asbhatti"
+sg docker -c "docker run --rm -v ~/iiot-stack/config:/mosquitto/config eclipse-mosquitto mosquitto_passwd -b -c /mosquitto/config/password.txt factory_admin asbhatti"
+
+# Fix ownership: owner=root, group=1883 (so container can read)
+sudo chown root:1883 ~/iiot-stack/config/password.txt
 
 if [ -f ~/iiot-stack/config/password.txt ]; then
     echo "SUCCESS: password.txt created."
@@ -127,17 +111,9 @@ else
 fi
 
 # enusre config folder is accessible by $USER
-sudo chown -R $USER:$USER ~/iiot-stack/config
+#sudo chown -R $USER:$USER ~/iiot-stack/config
 
 # 7. Final Instructions
 echo "-------------------------------------------------------"
 echo "SETUP COMPLETE!"
 echo "-------------------------------------------------------"
-# The 'exec' command here is the secret to avoiding a logout.
-# It restarts the shell with the new group permissions.
-#exec newgrp docker <<EONG
-#  cd ~/iiot-stack
-#  docker compose up -d
-#  echo "Stack started successfully!"
-#  echo "Access InfluxDB at http://$(hostname -I | awk '{print $1}'):8086"
-#EONG
