@@ -12,7 +12,13 @@ sudo chown -R $USER:$USER "$STACK_DIR"
 cd "$CERT_DIR" || exit
 
 echo "--- Step 2: Generating Certificate Authority (CA) ---"
-openssl req -new -x509 -days 3650 -nodes -out ca.crt -keyout ca.key -subj "/CN=MyIIoT-CA"
+# Generate a 4096-bit CA key and self-signed certificate (valid 10 years)
+openssl req -x509 -newkey rsa:4096 -days 3650 -nodes \
+  -out ca.crt -keyout ca.key \
+  -subj "/CN=MyIIoT-CA" \
+  -addext "basicConstraints=critical,CA:TRUE" \
+  -addext "keyUsage=critical,keyCertSign,cRLSign" \
+  -addext "subjectKeyIdentifier=hash"
 chmod 644 ca.crt
 
 echo "--- Step 3: Creating OpenSSL Config ---"

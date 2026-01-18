@@ -1,0 +1,10 @@
+# Treat shell scripts as text, keep LF endings
+*.sh text eol=lf
+
+# Treat telegraf config as text, keep LF endings
+*.conf text eol=lf
+
+# Treat certificate/key files as binary (do NOT convert)
+*.crt binary
+*.key binary
+*.pem binary
