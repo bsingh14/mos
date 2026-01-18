@@ -1,0 +1,19 @@
+# Build folder
+build/
+managed_components/
+
+# Compiled object files
+*.o
+*.elf
+*.bin
+*.map
+
+# SDK config auto-generated
+#sdkconfig
+
+# VS Code workspace settings (optional)
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
