@@ -16,7 +16,7 @@ void start_https_ota(void)
     ESP_LOGI(TAG, "Starting Manual Flash Write...");
 
     esp_http_client_config_t config = {
-        .url = "https://192.168.4.126/esp32s3_https_ota_demo.bin",
+        .url = "https://192.168.4.126/mqtt_demo.bin",
         .cert_pem = (const char *)server_cert_pem_start,
         .timeout_ms = 15000,
         .buffer_size = 4096,
